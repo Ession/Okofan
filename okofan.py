@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
 import sys
+import os
+from glob import glob
 
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QFileDialog
 from PyQt5.uic import loadUiType
 
 # load the ui MainWindow UI File
@@ -30,11 +32,32 @@ class MainWindow(MainWindowBase, MainWindowUI):
         self.actionAbout.triggered.connect(self.about_action)
 
     def open_action(self):
-        # TODO Implement open_action: Opening file open dialog.
-        pass
+        """
+        Opens a file dialog to get the logfile location
+
+        :type self: MainWindow
+        :return:
+        """
+        # opens directory chooser dialog
+        directory_path = QFileDialog.getExistingDirectory(self, "Open Directory", "", QFileDialog.ShowDirsOnly)
+
+        # checks if the user canceled the dialog
+        if directory_path:
+            os.chdir(directory_path)
+
+            # only returns files that fit the logfile name pattern: CM130513.CSV
+            logfilepaths = []
+            for file in glob("CM[0-9][0-9][0-9][0-9][0-9][0-9].csv"):
+                logfilepaths.append(directory_path + file)
+            # TODO Open the files and add them to the table widget.
 
     @staticmethod
     def exit_action():
+        """
+        Quits the application
+
+        :return:
+        """
         QApplication.quit()
 
     def about_action(self):
