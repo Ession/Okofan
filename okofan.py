@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""Gui application to analyze Ökofen log files."""
 
 import sys
 from os import chdir
@@ -16,15 +17,11 @@ MainWindowUI, MainWindowBase = loadUiType('ui\MainWindow.ui')
 
 
 class MainWindow(MainWindowBase, MainWindowUI):
-    """
-    This class defines the main application Window.
-    """
-    def __init__(self):
-        """
-        Initialize the main window.
 
-        :return: empty
-        """
+    """This class defines the main application Window."""
+
+    def __init__(self):
+        """Initialize the main window."""
         super().__init__()
         self.setupUi(self)
 
@@ -41,22 +38,27 @@ class MainWindow(MainWindowBase, MainWindowUI):
         :return: empty
         """
         # opens directory chooser dialog
-        directory_path = QFileDialog.getExistingDirectory(self, 'Open Directory', '', QFileDialog.ShowDirsOnly)
+        directory = QFileDialog.getExistingDirectory(self,
+                                                     'Open Directory', '',
+                                                     QFileDialog.ShowDirsOnly)
 
         # checks if the user canceled the dialog
-        if directory_path:
-            chdir(directory_path)
+        if directory:
+            chdir(directory)
 
             # TODO Replace placeholder column with real data.
-            # only returns files that fit the logfile name pattern: CM130513.CSV
+            # logfile name pattern: CM130513.CSV
             logfilepaths = []
             for file in glob('CM[0-9][0-9][0-9][0-9][0-9][0-9].csv'):
-                logfilepaths.append((directory_path + file, randint(0, 100)))
+                logfilepaths.append((directory + file, randint(0, 100)))
 
             # populate the log list table with data
-            table_view_log_list_model = TableModel(logfilepaths, ['Date', 'placeholder'], self)
+            log_list_header = ['Date', 'placeholder']
+            table_view_log_list_model = TableModel(logfilepaths,
+                                                   log_list_header, self)
             self.tableViewLogList.setModel(table_view_log_list_model)
-            self.tableViewLogList.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+            self.tableViewLogList.horizontalHeader()\
+                .setSectionResizeMode(1, QHeaderView.Stretch)
             self.tableViewLogList.setSortingEnabled(True)
 
     @staticmethod
@@ -80,9 +82,9 @@ class MainWindow(MainWindowBase, MainWindowUI):
 
 
 class TableModel(QAbstractTableModel):
-    """
-    Table Model that defines the data for the logfile table view
-    """
+
+    """Table Model that defines the data for the logfile table view."""
+
     def __init__(self, data_list, header_list, parent=None):
         """
         Initialize the Table Model.
@@ -115,7 +117,7 @@ class TableModel(QAbstractTableModel):
 
     def data(self, index, role):
         """
-        Return the data stored under the given role for the item referred to by the index.
+        Return the data stored under the given role for the item at index.
 
         :param index: Index of the stored datum
         :param role: Role of the indexed datum
@@ -129,11 +131,11 @@ class TableModel(QAbstractTableModel):
 
     def headerData(self, section, orientation, role):
         """
-        Return the given role and section in the header with the specific orientation.
+        Return the given role and section in the header.
 
         :param section: In a horizontal header, the number of the column.
                         In a vertical header, the number of the row.
-        :param orientation: The orientation of the header (horizontal or vertical).
+        :param orientation: The orientation of the header.
         :param role: The role of the datum.
         :return:
         """
