@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
 import sys
-import os
+from os import chdir
 from glob import glob
+from random import randint
+from operator import itemgetter
 
 from PyQt5.QtCore import QAbstractTableModel, QVariant, Qt
-from PyQt5.QtWidgets import QApplication, QFileDialog
+from PyQt5.QtWidgets import QApplication, QFileDialog, QHeaderView
 from PyQt5.uic import loadUiType
 
 # load the ui MainWindow UI File
@@ -31,12 +33,6 @@ class MainWindow(MainWindowBase, MainWindowUI):
         self.actionExit.triggered.connect(self.exit_action)
         self.actionAbout.triggered.connect(self.about_action)
 
-        # setting the table model
-        # TODO Display the real data instead of dummy values
-        table_view_log_list_model = TableModel([('date 1', 2), ('date 2', 3), ('date 3', 4)],
-                                               ['Date', 'Number'], self)
-        self.tableViewLogList.setModel(table_view_log_list_model)
-
     def open_action(self):
         """
         Open a file dialog to get the logfile location.
@@ -49,13 +45,19 @@ class MainWindow(MainWindowBase, MainWindowUI):
 
         # checks if the user canceled the dialog
         if directory_path:
-            os.chdir(directory_path)
+            chdir(directory_path)
 
+            # TODO Replace placeholder column with real data.
             # only returns files that fit the logfile name pattern: CM130513.CSV
             logfilepaths = []
             for file in glob('CM[0-9][0-9][0-9][0-9][0-9][0-9].csv'):
-                logfilepaths.append(directory_path + file)
-            # TODO Open the files and add them to the table widget.
+                logfilepaths.append((directory_path + file, randint(0, 100)))
+
+            # populate the log list table with data
+            table_view_log_list_model = TableModel(logfilepaths, ['Date', 'placeholder'], self)
+            self.tableViewLogList.setModel(table_view_log_list_model)
+            self.tableViewLogList.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+            self.tableViewLogList.setSortingEnabled(True)
 
     @staticmethod
     def exit_action():
@@ -139,7 +141,19 @@ class TableModel(QAbstractTableModel):
             return QVariant(self.header_list[section])
         return QVariant()
 
-    # TODO Implement table sorting.
+    def sort(self, column, order):
+        """
+        Sort the table by given column.
+
+        :param column: Column number to be sorted by.
+        :param order: Order to sort by.
+        :return:
+        """
+        self.layoutAboutToBeChanged.emit()
+        self.data_list = sorted(self.data_list, key=itemgetter(column))
+        if order == Qt.DescendingOrder:
+            self.data_list.reverse()
+        self.layoutChanged.emit()
 
 
 app = QApplication(sys.argv)
