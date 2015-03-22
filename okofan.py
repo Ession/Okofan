@@ -2,9 +2,11 @@
 """Gui application to analyze Ökofen log files."""
 
 import sys
+import csv
 from os import chdir
 from glob import glob
 from random import randint
+from datetime import datetime
 from operator import itemgetter
 
 from PyQt5.QtCore import QAbstractTableModel, QVariant, Qt
@@ -46,36 +48,44 @@ class MainWindow(MainWindowBase, MainWindowUI):
         if directory:
             chdir(directory)
 
-            # TODO Replace placeholder column with real data.
             # logfile name pattern: CM130513.CSV
-            logfilepaths = []
+            logdata = []
             for file in glob('CM[0-9][0-9][0-9][0-9][0-9][0-9].csv'):
-                logfilepaths.append((directory + file, randint(0, 100)))
+                with open(directory + '/' + file, newline='') as logfile:
+                    logfile = (x.replace('\0', '') for x in logfile)
+                    reader = csv.DictReader(strip_lines(logfile),
+                                            delimiter=';')
+
+                    date = datetime.strptime((next(reader)['Date']),
+                                             '%d.%m.%Y').strftime('%Y-%m-%d')
+
+                    # TODO Replace placeholder column with real data.
+                    logdata.append((date, randint(0, 100)))
 
             # populate the log list table with data
             log_list_header = ['Date', 'placeholder']
-            table_view_log_list_model = TableModel(logfilepaths,
+            table_view_log_list_model = TableModel(logdata,
                                                    log_list_header, self)
             self.tableViewLogList.setModel(table_view_log_list_model)
             self.tableViewLogList.horizontalHeader()\
-                .setSectionResizeMode(1, QHeaderView.Stretch)
+                .setSectionResizeMode(0, QHeaderView.Stretch)
             self.tableViewLogList.setSortingEnabled(True)
 
     @staticmethod
-    def exit_action():
+    def exit_action(self):
         """
         Quit the application.
 
         :return: empty
         """
-        QApplication.quit()
+        QApplication.quit(self)
 
     @staticmethod
     def about_action(self):
         """
         Open the about dialog.
 
-        :return:empty
+        :return: empty
         """
         # TODO Implement about_action: Opening about dialog.
         pass
@@ -157,6 +167,17 @@ class TableModel(QAbstractTableModel):
             self.data_list.reverse()
         self.layoutChanged.emit()
 
+
+def strip_lines(iterable):
+    """
+    Strip empty lines from the iterator.
+
+    :param iterable: iterator to strip lines from
+    :return: yields next iterator line
+    """
+    for line in iterable:
+        if line.strip():
+            yield line
 
 app = QApplication(sys.argv)
 widget = MainWindow()
