@@ -7,10 +7,10 @@ from os import chdir
 from glob import glob
 from random import randint
 from datetime import datetime
-from operator import itemgetter
 
-from PyQt5.QtCore import QAbstractTableModel, QVariant, Qt
-from PyQt5.QtWidgets import QApplication, QFileDialog, QHeaderView
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import (QApplication, QFileDialog, QTableWidgetItem,
+                             QAbstractItemView)
 from PyQt5.uic import loadUiType
 
 # load the ui MainWindow UI File
@@ -31,6 +31,9 @@ class MainWindow(MainWindowBase, MainWindowUI):
         self.actionOpen.triggered.connect(self.open_action)
         self.actionExit.triggered.connect(self.exit_action)
         self.actionAbout.triggered.connect(self.about_action)
+        self.overview_cal.activated.connect(self.overview_cal_activated)
+
+        self.loglist.setSelectionBehavior(QAbstractItemView.SelectRows)
 
     def open_action(self):
         """
@@ -62,14 +65,16 @@ class MainWindow(MainWindowBase, MainWindowUI):
                     # TODO Replace placeholder column with real data.
                     logdata.append((date, randint(0, 100)))
 
-            # populate the log list table with data
-            log_list_header = ['Date', 'placeholder']
-            table_view_log_list_model = TableModel(logdata,
-                                                   log_list_header, self)
-            self.tableViewLogList.setModel(table_view_log_list_model)
-            self.tableViewLogList.horizontalHeader()\
-                .setSectionResizeMode(0, QHeaderView.Stretch)
-            self.tableViewLogList.setSortingEnabled(True)
+            self.loglist.setRowCount(len(logdata))
+            self.loglist.setColumnCount(len(logdata[0]))
+            self.loglist.setHorizontalHeaderLabels(('Date', 'placeholder'))
+
+            for rowcount, rowdata in enumerate(logdata):
+                for colcount, coldata in enumerate(rowdata):
+                    cellitem = QTableWidgetItem()
+                    cellitem.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+                    cellitem.setText(str(coldata))
+                    self.loglist.setItem(rowcount, colcount, cellitem)
 
     @staticmethod
     def exit_action(self):
@@ -90,82 +95,19 @@ class MainWindow(MainWindowBase, MainWindowUI):
         # TODO Implement about_action: Opening about dialog.
         pass
 
-
-class TableModel(QAbstractTableModel):
-
-    """Table Model that defines the data for the logfile table view."""
-
-    def __init__(self, data_list, header_list, parent=None):
+    def overview_cal_activated(self, date):
         """
-        Initialize the Table Model.
+        Select the selected day in the log table.
 
-        :param data_list: List of data (2 dimensional list of tuples)
-        :param header_list: List of header titles (strings)
-        :return:
+        :param date: Selected date.
         """
-        super().__init__(parent)
-        self.data_list = data_list
-        self.header_list = header_list
+        items = self.loglist.findItems(date.toString('yyyy-MM-dd'),
+                                       Qt.MatchExactly)
 
-    def rowCount(self, parent):
-        """
-        Return the amount of rows in the table.
-
-        :param parent: the table model
-        :return: amount of rows in the table
-        """
-        return len(self.data_list)
-
-    def columnCount(self, parent):
-        """
-        Return the amount of columns in the table.
-
-        :param parent: The table model
-        :return: Amount of columns in the table
-        """
-        return len(self.data_list[0])
-
-    def data(self, index, role):
-        """
-        Return the data stored under the given role for the item at index.
-
-        :param index: Index of the stored datum
-        :param role: Role of the indexed datum
-        :return: QVariant
-        """
-        if not index.isValid():
-            return QVariant()
-        elif role != Qt.DisplayRole:
-            return QVariant()
-        return QVariant(self.data_list[index.row()][index.column()])
-
-    def headerData(self, section, orientation, role):
-        """
-        Return the given role and section in the header.
-
-        :param section: In a horizontal header, the number of the column.
-                        In a vertical header, the number of the row.
-        :param orientation: The orientation of the header.
-        :param role: The role of the datum.
-        :return:
-        """
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return QVariant(self.header_list[section])
-        return QVariant()
-
-    def sort(self, column, order):
-        """
-        Sort the table by given column.
-
-        :param column: Column number to be sorted by.
-        :param order: Order to sort by.
-        :return:
-        """
-        self.layoutAboutToBeChanged.emit()
-        self.data_list = sorted(self.data_list, key=itemgetter(column))
-        if order == Qt.DescendingOrder:
-            self.data_list.reverse()
-        self.layoutChanged.emit()
+        if items:
+            for item in items:
+                results = int(item.row())
+                self.loglist.selectRow(results)
 
 
 def strip_lines(iterable):
@@ -178,6 +120,7 @@ def strip_lines(iterable):
     for line in iterable:
         if line.strip():
             yield line
+
 
 app = QApplication(sys.argv)
 widget = MainWindow()

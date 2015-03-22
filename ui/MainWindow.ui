@@ -68,7 +68,7 @@
             <number>0</number>
            </property>
            <item>
-            <widget class="QCalendarWidget" name="calendarWidget">
+            <widget class="QCalendarWidget" name="overview_cal">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                <horstretch>0</horstretch>
@@ -125,7 +125,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QTableView" name="tableViewLogList"/>
+         <widget class="QTableWidget" name="loglist"/>
         </item>
        </layout>
       </widget>
