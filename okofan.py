@@ -22,6 +22,9 @@ class MainWindow(MainWindowBase, MainWindowUI):
 
     """This class defines the main application Window."""
 
+    # dictionary of log file paths with date as key (YYYY-MM-DD)
+    logfiles = {}
+
     def __init__(self):
         """Initialize the main window."""
         super().__init__()
@@ -31,12 +34,14 @@ class MainWindow(MainWindowBase, MainWindowUI):
         self.actionOpen.triggered.connect(self.open_action)
         self.actionExit.triggered.connect(self.exit_action)
         self.actionAbout.triggered.connect(self.about_action)
-        self.overview_cal.activated.connect(self.overview_cal_activated)
+        self.overview_cal.clicked.connect(self.overview_cal_clicked)
         self.loglist.itemSelectionChanged.connect(self.selection_changed)
         self.loglist.itemActivated.connect(self.item_activated)
 
         self.loglist.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.loglist.setSelectionMode(QAbstractItemView.SingleSelection)
+
+        self.logdetail.setSelectionBehavior(QAbstractItemView.SelectRows)
 
     def open_action(self):
         """
@@ -57,20 +62,22 @@ class MainWindow(MainWindowBase, MainWindowUI):
             # logfile name pattern: CM130513.CSV
             logdata = []
             for file in glob('CM[0-9][0-9][0-9][0-9][0-9][0-9].csv'):
-                with open(directory + '/' + file, newline='') as logfile:
-                    logfile = (x.replace('\0', '') for x in logfile)
-                    reader = csv.DictReader(strip_lines(logfile),
-                                            delimiter=';')
+                path = directory + '/' + file
 
-                    date = datetime.strptime((next(reader)['Date']),
-                                             '%d.%m.%Y').strftime('%Y-%m-%d')
+                # get date from the log file and convert it to YYYY-MM-DD
+                date = datetime.strptime(self.getlogdate(path),
+                                         '%d.%m.%Y').strftime('%Y-%m-%d')
 
-                    # TODO Replace placeholder column with real data.
-                    logdata.append((date, randint(0, 100)))
+                # save path and date for later use
+                self.logfiles[date] = path
+
+                # TODO Replace placeholder column with real data.
+                logdata.append((date, randint(0, 100)))
 
             self.loglist.setRowCount(len(logdata))
             self.loglist.setColumnCount(len(logdata[0]))
             self.loglist.setHorizontalHeaderLabels(('Date', 'placeholder'))
+            self.loglist.horizontalHeader().setStretchLastSection(True)
 
             for rowcount, rowdata in enumerate(logdata):
                 for colcount, coldata in enumerate(rowdata):
@@ -98,7 +105,7 @@ class MainWindow(MainWindowBase, MainWindowUI):
         # TODO Implement about_action: Opening about dialog.
         pass
 
-    def overview_cal_activated(self, date):
+    def overview_cal_clicked(self, date):
         """
         Select the selected day in the log table.
 
@@ -118,14 +125,63 @@ class MainWindow(MainWindowBase, MainWindowUI):
         date = datetime.strptime(selected, '%Y-%m-%d')
         self.overview_cal.setSelectedDate(date)
 
-    @staticmethod
     def item_activated(self, item):
-        """Load the selected log in the detail table.
+        """
+        Load the selected log in the detail table.
 
         :param item: Item that way activated in the table.
         """
-        # TODO Implement opening the logfile in the detail table.
-        # print(item.text())
+        # switch to the details tab
+        self.maintab.setCurrentIndex(1)
+
+        # open the csv file and save the data to a list
+        logdata = []
+        with open(self.logfiles[item.text()], newline='') as logfile:
+            logfile = (x.replace('\0', '') for x in logfile)
+            reader = csv.reader(strip_lines(logfile), delimiter=';')
+
+            # skip the header
+            next(reader)
+
+            # save the data to a list and omit the last column (it's empty)
+            for logline in reader:
+                logdata.append(logline[:-1])
+
+        # setup the log detail table
+        self.logdetail.setRowCount(len(logdata))
+        self.logdetail.setColumnCount(len(logdata[0]))
+        self.logdetail.setHorizontalHeaderLabels(('Date', 'Time', 'KF', 'RGF',
+                                                  'SP_FRT', 'FRT', 'ES', 'PA',
+                                                  'LL', 'SZ', 'SP_uP', 'uP',
+                                                  'SM'))
+        self.logdetail.horizontalHeader().setStretchLastSection(True)
+
+        # insert data in to the table
+        for rowcount, rowdata in enumerate(logdata):
+            for colcount, coldata in enumerate(rowdata):
+                cellitem = QTableWidgetItem()
+                cellitem.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+                cellitem.setText(str(coldata))
+                self.logdetail.setItem(rowcount, colcount, cellitem)
+
+        self.logdetail.resizeColumnsToContents()
+
+    @staticmethod
+    def getlogdate(filepath):
+        """
+        Open a log file and get the log files date.
+
+        :param filepath: Path to the log file.
+        :return: Date the log File was written in YYYY-MM-DD.
+        """
+        with open(filepath, newline='') as logfile:
+            logfile = (x.replace('\0', '') for x in logfile)
+            reader = csv.reader(strip_lines(logfile), delimiter=';')
+
+            # skip the header
+            next(reader)
+
+            return str(next(reader)[0])
 
 
 def strip_lines(iterable):
