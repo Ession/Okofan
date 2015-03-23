@@ -32,8 +32,10 @@ class MainWindow(MainWindowBase, MainWindowUI):
         self.actionExit.triggered.connect(self.exit_action)
         self.actionAbout.triggered.connect(self.about_action)
         self.overview_cal.activated.connect(self.overview_cal_activated)
+        self.loglist.itemSelectionChanged.connect(self.selection_changed)
 
         self.loglist.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.loglist.setSelectionMode(QAbstractItemView.SingleSelection)
 
     def open_action(self):
         """
@@ -77,13 +79,13 @@ class MainWindow(MainWindowBase, MainWindowUI):
                     self.loglist.setItem(rowcount, colcount, cellitem)
 
     @staticmethod
-    def exit_action(self):
+    def exit_action():
         """
         Quit the application.
 
         :return: empty
         """
-        QApplication.quit(self)
+        QApplication.quit()
 
     @staticmethod
     def about_action(self):
@@ -108,6 +110,12 @@ class MainWindow(MainWindowBase, MainWindowUI):
             for item in items:
                 results = int(item.row())
                 self.loglist.selectRow(results)
+
+    def selection_changed(self):
+        """Select the day in the calendar widget."""
+        selected = self.loglist.selectedItems()[0].text()
+        date = datetime.strptime(selected, '%Y-%m-%d')
+        self.overview_cal.setSelectedDate(date)
 
 
 def strip_lines(iterable):

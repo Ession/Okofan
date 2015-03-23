@@ -22,7 +22,7 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout">
     <item>
-     <widget class="QTabWidget" name="tabWidgetDetails">
+     <widget class="QTabWidget" name="logdetail">
       <property name="tabPosition">
        <enum>QTabWidget::North</enum>
       </property>
