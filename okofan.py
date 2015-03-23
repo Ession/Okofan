@@ -33,6 +33,7 @@ class MainWindow(MainWindowBase, MainWindowUI):
         self.actionAbout.triggered.connect(self.about_action)
         self.overview_cal.activated.connect(self.overview_cal_activated)
         self.loglist.itemSelectionChanged.connect(self.selection_changed)
+        self.loglist.itemActivated.connect(self.item_activated)
 
         self.loglist.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.loglist.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -116,6 +117,15 @@ class MainWindow(MainWindowBase, MainWindowUI):
         selected = self.loglist.selectedItems()[0].text()
         date = datetime.strptime(selected, '%Y-%m-%d')
         self.overview_cal.setSelectedDate(date)
+
+    @staticmethod
+    def item_activated(self, item):
+        """Load the selected log in the detail table.
+
+        :param item: Item that way activated in the table.
+        """
+        # TODO Implement opening the logfile in the detail table.
+        # print(item.text())
 
 
 def strip_lines(iterable):
