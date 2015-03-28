@@ -3,16 +3,17 @@
 
 import sys
 import csv
-from os import chdir
-from glob import glob
-from random import randint
-from datetime import datetime
+import os
+import glob
+import random
+import datetime
 
-from PyQt5.QtCore import Qt, QSize, QDate
+import PyQt5.QtCore
 from PyQt5.QtWidgets import (QApplication, QFileDialog, QTableWidgetItem,
                              QAbstractItemView, QMainWindow, QWidget,
                              QHBoxLayout, QTabWidget, QStatusBar, QAction,
-                             QTableWidget, QVBoxLayout, QCalendarWidget)
+                             QTableWidget, QVBoxLayout, QCalendarWidget,
+                             QMessageBox)
 
 
 class MainWindow(QMainWindow):
@@ -28,7 +29,7 @@ class MainWindow(QMainWindow):
 
         # setting up the ui design
         self.resize(680, 500)
-        self.setMinimumSize(QSize(680, 500))
+        self.setMinimumSize(PyQt5.QtCore.QSize(680, 500))
 
         # construct the main widget
         self.centralwidget = QWidget(self)
@@ -73,7 +74,7 @@ class MainWindow(QMainWindow):
 
         # construct the calendar widget
         self.overviewcalendar = QCalendarWidget(self.taboverview)
-        self.overviewcalendar.setMaximumSize(QSize(260, 183))
+        self.overviewcalendar.setMaximumSize(PyQt5.QtCore.QSize(260, 183))
         self.overviewcalendar.setVerticalHeaderFormat(QCalendarWidget
                                                       .NoVerticalHeader)
         self.overviewcalendar.setGridVisible(True)
@@ -120,22 +121,23 @@ class MainWindow(QMainWindow):
 
         # checks if the user canceled the dialog
         if directory:
-            chdir(directory)
+            os.chdir(directory)
 
             # logfile name pattern: CM130513.CSV
             logdata = []
-            for file in glob('CM[0-9][0-9][0-9][0-9][0-9][0-9].csv'):
+            for file in glob.glob('CM[0-9][0-9][0-9][0-9][0-9][0-9].csv'):
                 path = directory + '/' + file
 
                 # get date from the log file and convert it to YYYY-MM-DD
-                date = datetime.strptime(self.getlogdate(path),
-                                         '%d.%m.%Y').strftime('%Y-%m-%d')
+                filedate = self.getlogdate(path)
+                date = datetime.datetime.strptime(filedate, '%d.%m.%Y')
+                date = date.strftime('%Y-%m-%d')
 
                 # save path and date for later use
                 self.logfiles[date] = path
 
                 # TODO Replace placeholder column with real data.
-                logdata.append((date, randint(0, 100)))
+                logdata.append((date, random.randint(0, 100)))
 
             self.loglist.setRowCount(len(logdata))
             self.loglist.setColumnCount(len(logdata[0]))
@@ -145,7 +147,8 @@ class MainWindow(QMainWindow):
             for rowcount, rowdata in enumerate(logdata):
                 for colcount, coldata in enumerate(rowdata):
                     cellitem = QTableWidgetItem()
-                    cellitem.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+                    cellitem.setFlags(PyQt5.QtCore.Qt.ItemIsSelectable |
+                                      PyQt5.QtCore.Qt.ItemIsEnabled)
                     cellitem.setText(str(coldata))
                     self.loglist.setItem(rowcount, colcount, cellitem)
 
@@ -175,7 +178,7 @@ class MainWindow(QMainWindow):
 
         """
         items = self.loglist.findItems(date.toString('yyyy-MM-dd'),
-                                       Qt.MatchExactly)
+                                       PyQt5.QtCore.Qt.MatchExactly)
 
         if items:
             for item in items:
@@ -185,7 +188,7 @@ class MainWindow(QMainWindow):
     def selection_changed(self):
         """Select the day in the calendar widget."""
         selected = self.loglist.selectedItems()[0].text()
-        date = datetime.strptime(selected, '%Y-%m-%d')
+        date = datetime.datetime.strptime(selected, '%Y-%m-%d')
         self.overviewcalendar.setSelectedDate(date)
 
     def item_activated(self, param):
@@ -194,15 +197,18 @@ class MainWindow(QMainWindow):
         :param param: QTableWidgetItem or QDate that was activated.
 
         """
-        # switch to the details tab
-        self.maintabwidget.setCurrentIndex(1)
 
         # Check if you got a WidgetItem from the table
         # or a QDate from the calendar.
         if isinstance(param, QTableWidgetItem):
             date = param.text()
-        elif isinstance(param, QDate):
+        elif isinstance(param, PyQt5.QtCore.QDate):
             date = param.toString('yyyy-MM-dd')
+
+        if date not in self.logfiles:
+            QMessageBox.warning(self, 'Error',
+                                'No log for day \'' + date + '\' found.')
+            return
 
         # open the csv file and save the data to a list
         logdata = []
@@ -230,11 +236,16 @@ class MainWindow(QMainWindow):
         for rowcount, rowdata in enumerate(logdata):
             for colcount, coldata in enumerate(rowdata):
                 cellitem = QTableWidgetItem()
-                cellitem.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+                cellitem.setFlags(PyQt5.QtCore.Qt.ItemIsSelectable |
+                                  PyQt5.QtCore.Qt.ItemIsEnabled)
                 cellitem.setText(str(coldata))
                 self.logdetail.setItem(rowcount, colcount, cellitem)
 
         self.logdetail.resizeColumnsToContents()
+
+        # switch to the details tab
+        self.maintabwidget.setCurrentIndex(1)
+
 
     @staticmethod
     def getlogdate(filepath):
