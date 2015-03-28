@@ -8,13 +8,11 @@ from glob import glob
 from random import randint
 from datetime import datetime
 
-from PyQt5.QtCore import Qt, QSize, QRect
+from PyQt5.QtCore import Qt, QSize, QDate
 from PyQt5.QtWidgets import (QApplication, QFileDialog, QTableWidgetItem,
                              QAbstractItemView, QMainWindow, QWidget,
-                             QHBoxLayout, QTabWidget, QMenuBar, QMenu,
-                             QStatusBar, QAction, QTableWidget, QFrame,
-                             QSizePolicy, QVBoxLayout, QCalendarWidget,
-                             QFormLayout, QSpacerItem)
+                             QHBoxLayout, QTabWidget, QStatusBar, QAction,
+                             QTableWidget, QVBoxLayout, QCalendarWidget)
 
 
 class MainWindow(QMainWindow):
@@ -69,73 +67,44 @@ class MainWindow(QMainWindow):
         # construct the overview tab
         self.taboverview = QWidget()
         self.taboverviewlayout = QHBoxLayout(self.taboverview)
-        self.frame = QFrame(self.taboverview)
-        self.framelayout = QVBoxLayout(self.frame)
-        self.framelayout.setContentsMargins(0, 0, 0, 0)
+
+        # layout to hold the calendar widget
+        self.overviewcalendarlayout = QVBoxLayout(self.taboverview)
 
         # construct the calendar widget
-        self.overview_cal = QCalendarWidget(self.frame)
-        sizepolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        sizepolicy.setHeightForWidth(self.overview_cal.sizePolicy()
-                                     .hasHeightForWidth())
-        self.overview_cal.setSizePolicy(sizepolicy)
-        self.overview_cal.setMinimumSize(QSize(260, 183))
-        self.overview_cal.setMaximumSize(QSize(260, 183))
-        self.overview_cal.setGridVisible(True)
-        self.overview_cal.setHorizontalHeaderFormat(QCalendarWidget
-                                                    .SingleLetterDayNames)
-        self.overview_cal.setVerticalHeaderFormat(QCalendarWidget
-                                                  .NoVerticalHeader)
-        self.overview_cal.setNavigationBarVisible(True)
-        self.overview_cal.setDateEditEnabled(True)
-
-        self.framelayout.addWidget(self.overview_cal)
-
-        self.formlayout = QFormLayout(self.frame)
-        spaceritem = QSpacerItem(20, 40, QSizePolicy.Minimum,
-                                 QSizePolicy.Expanding)
-        self.formlayout.setItem(0, QFormLayout.LabelRole, spaceritem)
-        self.framelayout.addLayout(self.formlayout)
-
-        self.taboverviewlayout.addWidget(self.frame)
+        self.overviewcalendar = QCalendarWidget(self.taboverview)
+        self.overviewcalendar.setMaximumSize(QSize(260, 183))
+        self.overviewcalendar.setVerticalHeaderFormat(QCalendarWidget
+                                                      .NoVerticalHeader)
+        self.overviewcalendar.setGridVisible(True)
+        self.overviewcalendar.setNavigationBarVisible(True)
+        self.overviewcalendar.clicked.connect(self.overview_cal_clicked)
+        self.overviewcalendar.activated.connect(self.item_activated)
+        self.overviewcalendarlayout.addWidget(self.overviewcalendar)
+        self.overviewcalendarlayout.addStretch()
+        self.taboverviewlayout.addLayout(self.overviewcalendarlayout)
 
         # construct the log list table
         self.loglist = QTableWidget(self.taboverview)
+        self.loglist.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.loglist.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.loglist.itemSelectionChanged.connect(self.selection_changed)
+        self.loglist.itemActivated.connect(self.item_activated)
         self.taboverviewlayout.addWidget(self.loglist)
 
-        # add the tab to the main tab widget
-        self.maintabwidget.addTab(self.taboverview, 'Overview')
+        # construct the detail tab
         self.tabdetail = QWidget()
+        self.tabdetaillayout = QVBoxLayout(self.tabdetail)
+
+        # construct the log detail table
+        self.logdetail = QTableWidget(self.tabdetail)
+        self.logdetail.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.tabdetaillayout.addWidget(self.logdetail)
+
+        # add the tabs to the main tab widget
+        self.maintabwidget.addTab(self.taboverview, 'Overview')
         self.maintabwidget.addTab(self.tabdetail, 'Detail')
         self.centralwidgetlayout.addWidget(self.maintabwidget)
-
-        # sizePolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
-        # sizePolicy.setHorizontalStretch(0)
-        # sizePolicy.setVerticalStretch(0)
-        # sizePolicy.setHeightForWidth(
-        # self.frame.sizePolicy().hasHeightForWidth())
-        # self.frame.setSizePolicy(sizePolicy)
-        # self.frame.setFrameShape(QFrame.StyledPanel)
-        # self.frame.setFrameShadow(QFrame.Raised)
-        # self.verticalLayout = QVBoxLayout(self.frame)
-        # self.overview_cal = QCalendarWidget(self.frame)
-        #
-        # self.verticalLayout.addWidget(self.overview_cal)
-        #
-        # self.taboverviewlayout.addWidget(self.frame)
-        #
-        # self.loglist = QTableWidget(self.taboverview)
-        # self.taboverviewlayout.addWidget(self.loglist)
-
-        # connecting the signals of the menu bar
-        # self.overview_cal.clicked.connect(self.overview_cal_clicked)
-        # self.loglist.itemSelectionChanged.connect(self.selection_changed)
-        # self.loglist.itemActivated.connect(self.item_activated)
-        #
-        # self.loglist.setSelectionBehavior(QAbstractItemView.SelectRows)
-        # self.loglist.setSelectionMode(QAbstractItemView.SingleSelection)
-        #
-        # self.logdetail.setSelectionBehavior(QAbstractItemView.SelectRows)
 
     def open_action(self):
         """Open a file dialog to get the logfile location.
@@ -217,20 +186,27 @@ class MainWindow(QMainWindow):
         """Select the day in the calendar widget."""
         selected = self.loglist.selectedItems()[0].text()
         date = datetime.strptime(selected, '%Y-%m-%d')
-        self.overview_cal.setSelectedDate(date)
+        self.overviewcalendar.setSelectedDate(date)
 
-    def item_activated(self, item):
+    def item_activated(self, param):
         """Load the selected log in the detail table.
 
-        :param item: Item that way activated in the table.
+        :param param: QTableWidgetItem or QDate that was activated.
 
         """
         # switch to the details tab
-        self.maintab.setCurrentIndex(1)
+        self.maintabwidget.setCurrentIndex(1)
+
+        # Check if you got a WidgetItem from the table
+        # or a QDate from the calendar.
+        if isinstance(param, QTableWidgetItem):
+            date = param.text()
+        elif isinstance(param, QDate):
+            date = param.toString('yyyy-MM-dd')
 
         # open the csv file and save the data to a list
         logdata = []
-        with open(self.logfiles[item.text()], newline='') as logfile:
+        with open(self.logfiles[date], newline='') as logfile:
             logfile = (x.replace('\0', '') for x in logfile)
             reader = csv.reader(strip_lines(logfile), delimiter=';')
 
