@@ -7,13 +7,15 @@ import os
 import glob
 import random
 import datetime
+import time
+import copy
 
 import PyQt5.QtCore
 from PyQt5.QtWidgets import (QApplication, QFileDialog, QTableWidgetItem,
                              QAbstractItemView, QMainWindow, QWidget,
                              QHBoxLayout, QTabWidget, QStatusBar, QAction,
                              QTableWidget, QVBoxLayout, QCalendarWidget,
-                             QMessageBox)
+                             QMessageBox, QProgressDialog, QDialog)
 
 
 class MainWindow(QMainWindow):
@@ -120,37 +122,56 @@ class MainWindow(QMainWindow):
                                                      QFileDialog.ShowDirsOnly)
 
         # checks if the user canceled the dialog
-        if directory:
-            os.chdir(directory)
+        if not directory:
+            return
 
-            # logfile name pattern: CM130513.CSV
-            logdata = []
-            for file in glob.glob('CM[0-9][0-9][0-9][0-9][0-9][0-9].csv'):
-                path = directory + '/' + file
+        # open the log directory
+        os.chdir(directory)
 
-                # get date from the log file and convert it to YYYY-MM-DD
-                filedate = self.getlogdate(path)
-                date = datetime.datetime.strptime(filedate, '%d.%m.%Y')
-                date = date.strftime('%Y-%m-%d')
+        # logfile name pattern: CM130513.CSV
+        logdata = []
+        filelist = glob.glob('CM[0-9][0-9][0-9][0-9][0-9][0-9].csv')
 
-                # save path and date for later use
-                self.logfiles[date] = path
+        # construct the progressbar dialog in case opening takes a while
+        progress = QProgressDialog('Opening files...', 'Cancel', 0,
+                                   len(filelist), self)
+        progress.setWindowModality(PyQt5.QtCore.Qt.WindowModal)
 
-                # TODO Replace placeholder column with real data.
-                logdata.append((date, random.randint(0, 100)))
+        logfilescopy = copy.deepcopy(self.logfiles)
 
-            self.loglist.setRowCount(len(logdata))
-            self.loglist.setColumnCount(len(logdata[0]))
-            self.loglist.setHorizontalHeaderLabels(('Date', 'placeholder'))
-            self.loglist.horizontalHeader().setStretchLastSection(True)
+        for i, file in enumerate(filelist, start=1):
+            path = directory + '/' + file
 
-            for rowcount, rowdata in enumerate(logdata):
-                for colcount, coldata in enumerate(rowdata):
-                    cellitem = QTableWidgetItem()
-                    cellitem.setFlags(PyQt5.QtCore.Qt.ItemIsSelectable |
-                                      PyQt5.QtCore.Qt.ItemIsEnabled)
-                    cellitem.setText(str(coldata))
-                    self.loglist.setItem(rowcount, colcount, cellitem)
+            # get date from the log file and convert it to YYYY-MM-DD
+            filedate = self.getlogdate(path)
+            date = datetime.datetime.strptime(filedate, '%d.%m.%Y')
+            date = date.strftime('%Y-%m-%d')
+
+            # save path and date for later use
+            self.logfiles[date] = path
+
+            # TODO Replace placeholder column with real data.
+            logdata.append((date, random.randint(0, 100)))
+
+            # increment the progress bar
+            time.sleep(0.01)
+            progress.setValue(i)
+            if progress.wasCanceled():
+                self.logfiles = logfilescopy
+                return
+
+        self.loglist.setRowCount(len(logdata))
+        self.loglist.setColumnCount(len(logdata[0]))
+        self.loglist.setHorizontalHeaderLabels(('Date', 'placeholder'))
+        self.loglist.horizontalHeader().setStretchLastSection(True)
+
+        for rowcount, rowdata in enumerate(logdata):
+            for colcount, coldata in enumerate(rowdata):
+                cellitem = QTableWidgetItem()
+                cellitem.setFlags(PyQt5.QtCore.Qt.ItemIsSelectable |
+                                  PyQt5.QtCore.Qt.ItemIsEnabled)
+                cellitem.setText(str(coldata))
+                self.loglist.setItem(rowcount, colcount, cellitem)
 
     @staticmethod
     def exit_action():
@@ -245,7 +266,6 @@ class MainWindow(QMainWindow):
 
         # switch to the details tab
         self.maintabwidget.setCurrentIndex(1)
-
 
     @staticmethod
     def getlogdate(filepath):
