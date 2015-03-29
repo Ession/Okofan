@@ -149,8 +149,7 @@ class MainWindow(QMainWindow):
             # save path and date for later use
             self.logfiles[date] = path
 
-            # TODO Replace placeholder column with real data.
-            logdata.append((date, random.randint(0, 100)))
+            logdata.append(date)
 
             # increment the progress bar
             progress.setValue(i)
@@ -159,17 +158,16 @@ class MainWindow(QMainWindow):
                 return
 
         self.loglist.setRowCount(len(logdata))
-        self.loglist.setColumnCount(len(logdata[0]))
-        self.loglist.setHorizontalHeaderLabels(('Date', 'placeholder'))
+        self.loglist.setColumnCount(1)
+        self.loglist.setHorizontalHeaderLabels(['Date'])
         self.loglist.horizontalHeader().setStretchLastSection(True)
 
         for rowcount, rowdata in enumerate(logdata):
-            for colcount, coldata in enumerate(rowdata):
-                cellitem = QTableWidgetItem()
-                cellitem.setFlags(PyQt5.QtCore.Qt.ItemIsSelectable |
-                                  PyQt5.QtCore.Qt.ItemIsEnabled)
-                cellitem.setText(str(coldata))
-                self.loglist.setItem(rowcount, colcount, cellitem)
+            cellitem = QTableWidgetItem()
+            cellitem.setFlags(PyQt5.QtCore.Qt.ItemIsSelectable |
+                              PyQt5.QtCore.Qt.ItemIsEnabled)
+            cellitem.setText(str(rowdata))
+            self.loglist.setItem(rowcount, 0, cellitem)
 
     @staticmethod
     def exit_action():
