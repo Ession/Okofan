@@ -7,7 +7,6 @@ import os
 import glob
 import random
 import datetime
-import time
 import copy
 
 import PyQt5.QtCore
@@ -15,7 +14,7 @@ from PyQt5.QtWidgets import (QApplication, QFileDialog, QTableWidgetItem,
                              QAbstractItemView, QMainWindow, QWidget,
                              QHBoxLayout, QTabWidget, QStatusBar, QAction,
                              QTableWidget, QVBoxLayout, QCalendarWidget,
-                             QMessageBox, QProgressDialog, QDialog)
+                             QMessageBox, QProgressDialog)
 
 
 class MainWindow(QMainWindow):
@@ -96,17 +95,17 @@ class MainWindow(QMainWindow):
         self.taboverviewlayout.addWidget(self.loglist)
 
         # construct the detail tab
-        self.tabdetail = QWidget()
-        self.tabdetaillayout = QVBoxLayout(self.tabdetail)
+        self.tabdetaillist = QWidget()
+        self.logdetaillistlayout = QVBoxLayout(self.tabdetaillist)
 
         # construct the log detail table
-        self.logdetail = QTableWidget(self.tabdetail)
-        self.logdetail.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.tabdetaillayout.addWidget(self.logdetail)
+        self.logdetaillist = QTableWidget(self.tabdetaillist)
+        self.logdetaillist.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.logdetaillistlayout.addWidget(self.logdetaillist)
 
         # add the tabs to the main tab widget
         self.maintabwidget.addTab(self.taboverview, 'Overview')
-        self.maintabwidget.addTab(self.tabdetail, 'Detail')
+        self.maintabwidget.addTab(self.tabdetaillist, 'Detail log')
         self.centralwidgetlayout.addWidget(self.maintabwidget)
 
     def open_action(self):
@@ -154,7 +153,6 @@ class MainWindow(QMainWindow):
             logdata.append((date, random.randint(0, 100)))
 
             # increment the progress bar
-            time.sleep(0.01)
             progress.setValue(i)
             if progress.wasCanceled():
                 self.logfiles = logfilescopy
@@ -225,10 +223,14 @@ class MainWindow(QMainWindow):
             date = param.text()
         elif isinstance(param, PyQt5.QtCore.QDate):
             date = param.toString('yyyy-MM-dd')
+        else:
+            return
 
+        # check if there is a log for the selected date
         if date not in self.logfiles:
             QMessageBox.warning(self, 'Error',
-                                'No log for day \'' + date + '\' found.')
+                                'No log for day \'' + date + '\' found.',
+                                QMessageBox.Ok)
             return
 
         # open the csv file and save the data to a list
@@ -245,13 +247,14 @@ class MainWindow(QMainWindow):
                 logdata.append(logline[:-1])
 
         # setup the log detail table
-        self.logdetail.setRowCount(len(logdata))
-        self.logdetail.setColumnCount(len(logdata[0]))
-        self.logdetail.setHorizontalHeaderLabels(('Date', 'Time', 'KF', 'RGF',
-                                                  'SP_FRT', 'FRT', 'ES', 'PA',
-                                                  'LL', 'SZ', 'SP_uP', 'uP',
-                                                  'SM'))
-        self.logdetail.horizontalHeader().setStretchLastSection(True)
+        self.logdetaillist.setRowCount(len(logdata))
+        self.logdetaillist.setColumnCount(len(logdata[0]))
+        self.logdetaillist.setHorizontalHeaderLabels(('Date', 'Time',
+                                                      'KF', 'RGF', 'SP_FRT',
+                                                      'FRT', 'ES', 'PA', 'LL',
+                                                      'SZ', 'SP_uP', 'uP',
+                                                      'SM'))
+        self.logdetaillist.horizontalHeader().setStretchLastSection(True)
 
         # insert data in to the table
         for rowcount, rowdata in enumerate(logdata):
@@ -260,9 +263,9 @@ class MainWindow(QMainWindow):
                 cellitem.setFlags(PyQt5.QtCore.Qt.ItemIsSelectable |
                                   PyQt5.QtCore.Qt.ItemIsEnabled)
                 cellitem.setText(str(coldata))
-                self.logdetail.setItem(rowcount, colcount, cellitem)
+                self.logdetaillist.setItem(rowcount, colcount, cellitem)
 
-        self.logdetail.resizeColumnsToContents()
+        self.logdetaillist.resizeColumnsToContents()
 
         # switch to the details tab
         self.maintabwidget.setCurrentIndex(1)
