@@ -124,30 +124,36 @@ class MainWindow(QMainWindow):
         if not directory:
             return
 
-        # open the log directory
-        os.chdir(directory)
-
         # logfile name pattern: CM130513.CSV
-        logdata = []
-        filelist = glob.glob('CM[0-9][0-9][0-9][0-9][0-9][0-9].csv')
+        filelist = glob.glob(directory +
+                             '/CM[0-9][0-9][0-9][0-9][0-9][0-9].csv')
 
+        # check if there were suitably named files and load them
+        if filelist:
+            self.load_log_list(filelist)
+
+    def load_log_list(self, files):
+        """Display a list of log files in the overview tab
+
+        :param files: List of log file paths.
+        :return: empty
+        """
         # construct the progressbar dialog in case opening takes a while
         progress = QProgressDialog('Opening files...', 'Cancel', 0,
-                                   len(filelist), self)
+                                   len(files), self)
         progress.setWindowModality(PyQt5.QtCore.Qt.WindowModal)
 
         logfilescopy = copy.deepcopy(self.logfiles)
 
-        for i, file in enumerate(filelist, start=1):
-            path = directory + '/' + file
-
+        logdata = []
+        for i, file in enumerate(files, start=1):
             # get date from the log file and convert it to YYYY-MM-DD
-            filedate = self.getlogdate(path)
+            filedate = self.getlogdate(file)
             date = datetime.datetime.strptime(filedate, '%d.%m.%Y')
             date = date.strftime('%Y-%m-%d')
 
             # save path and date for later use
-            self.logfiles[date] = path
+            self.logfiles[date] = file
 
             logdata.append(date)
 
@@ -157,6 +163,7 @@ class MainWindow(QMainWindow):
                 self.logfiles = logfilescopy
                 return
 
+        # construct the overview log list
         self.loglist.setRowCount(len(logdata))
         self.loglist.setColumnCount(1)
         self.loglist.setHorizontalHeaderLabels(['Date'])
