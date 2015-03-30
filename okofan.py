@@ -7,10 +7,6 @@ import glob
 from datetime import datetime
 import copy
 
-import matplotlib
-matplotlib.use('Qt5Agg')
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-from matplotlib.figure import Figure
 import numpy as np
 import PyQt5.QtCore
 from PyQt5.QtWidgets import (QApplication, QFileDialog, QTableWidgetItem,
@@ -18,6 +14,10 @@ from PyQt5.QtWidgets import (QApplication, QFileDialog, QTableWidgetItem,
                              QHBoxLayout, QTabWidget, QStatusBar, QAction,
                              QTableWidget, QVBoxLayout, QCalendarWidget,
                              QMessageBox, QProgressDialog, QSizePolicy)
+import matplotlib
+matplotlib.use('Qt5Agg')
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
 
 
 class MplCanvas(FigureCanvasQTAgg):
@@ -28,10 +28,6 @@ class MplCanvas(FigureCanvasQTAgg):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
 
-        t = np.arange(0.0, 3.0, 0.01)
-        s = np.sin(2 * np.pi * t)
-        self.axes.plot(t, s)
-
         FigureCanvasQTAgg.__init__(self, fig)
         self.setParent(parent)
 
@@ -39,6 +35,16 @@ class MplCanvas(FigureCanvasQTAgg):
                                         QSizePolicy.Expanding,
                                         QSizePolicy.Expanding)
         FigureCanvasQTAgg.updateGeometry(self)
+
+    def plot(self, x, y):
+        """Takes data and plots it on the canvas
+
+        :param x: Numpy array of X axis data to be plotted.
+        :param x: Numpy array of Y axis data to be plotted.
+        :return:
+
+        """
+        self.axes.plot(x, y)
 
 
 class MainWindow(QMainWindow):
@@ -144,7 +150,6 @@ class MainWindow(QMainWindow):
     def open_action(self):
         """Open a file dialog to get the logfile location.
 
-        :type self: MainWindow
         :return: empty
 
         """
@@ -170,6 +175,7 @@ class MainWindow(QMainWindow):
 
         :param files: List of log file paths.
         :return: empty
+
         """
         # construct the progressbar dialog in case opening takes a while
         progress = QProgressDialog('Opening files...', 'Cancel', 0,
@@ -269,10 +275,6 @@ class MainWindow(QMainWindow):
                                 QMessageBox.Ok)
             return
 
-        timecon = lambda s: datetime.strptime(s.decode(),
-                                              '%H:%M:%S').time().isoformat()
-        stringcon = lambda s: s.decode()
-
         # read csv file and save the data to a list
         logdata_numpy = np.genfromtxt(self.logfiles[date],
                                       delimiter=';', usecols=range(1, 13),
@@ -280,8 +282,8 @@ class MainWindow(QMainWindow):
                                       filling_values='Burning',
                                       dtype=(object, int, int, int, int, int,
                                              int, int, int, int, int, object),
-                                      converters={1: timecon,
-                                                  12: stringcon})
+                                      converters={1: convert_time,
+                                                  12: lambda s: s.decode()})
 
         # setup the log detail table
         self.logdetaillist.setRowCount(len(logdata_numpy))
@@ -326,13 +328,23 @@ class MainWindow(QMainWindow):
 def strip_lines(iterable):
     """Strip empty lines from the iterator.
 
-    :param iterable: iterator to strip lines from
-    :return: yields next iterator line
+    :param iterable: Iterator to strip lines from
+    :return: Yields next iterator line
 
     """
     for line in iterable:
         if line.strip():
             yield line
+
+
+def convert_time(time):
+    """Convert time string to have leading zeros.
+
+    :param time: Byte array in '%H:%M:%S' without leading zeros.
+    :return: String in '%H:%M:%S' with leading zeros.
+
+    """
+    return datetime.strptime(time.decode(), '%H:%M:%S').time().isoformat()
 
 
 app = QApplication(sys.argv)
