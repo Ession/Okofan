@@ -3,12 +3,11 @@
 
 import sys
 import csv
-import os
 import glob
-import random
-import datetime
+from datetime import datetime
 import copy
 
+import numpy as np
 import PyQt5.QtCore
 from PyQt5.QtWidgets import (QApplication, QFileDialog, QTableWidgetItem,
                              QAbstractItemView, QMainWindow, QWidget,
@@ -148,9 +147,7 @@ class MainWindow(QMainWindow):
         logdata = []
         for i, file in enumerate(files, start=1):
             # get date from the log file and convert it to YYYY-MM-DD
-            filedate = self.getlogdate(file)
-            date = datetime.datetime.strptime(filedate, '%d.%m.%Y')
-            date = date.strftime('%Y-%m-%d')
+            date = self.getlogdate(file)
 
             # save path and date for later use
             self.logfiles[date] = file
@@ -212,7 +209,7 @@ class MainWindow(QMainWindow):
     def selection_changed(self):
         """Select the day in the calendar widget."""
         selected = self.loglist.selectedItems()[0].text()
-        date = datetime.datetime.strptime(selected, '%Y-%m-%d')
+        date = datetime.strptime(selected, '%Y-%m-%d')
         self.overviewcalendar.setSelectedDate(date)
 
     def item_activated(self, param):
@@ -238,31 +235,28 @@ class MainWindow(QMainWindow):
                                 QMessageBox.Ok)
             return
 
-        # open the csv file and save the data to a list
-        logdata = []
-        with open(self.logfiles[date], newline='') as logfile:
-            logfile = (x.replace('\0', '') for x in logfile)
-            reader = csv.reader(strip_lines(logfile), delimiter=';')
+        timecon = lambda s: datetime.strptime(s.decode(),
+                                              '%H:%M:%S').time().isoformat()
+        stringcon = lambda s: s.decode()
 
-            # skip the header
-            next(reader)
-
-            # save the data to a list and omit the last column (it's empty)
-            for logline in reader:
-                logdata.append(logline[:-1])
+        # read csv file and save the data to a list
+        logdata_numpy = np.genfromtxt(self.logfiles[date],
+                                      delimiter=';', usecols=range(1, 13),
+                                      names=True, autostrip=True, unpack=True,
+                                      filling_values='Burning',
+                                      dtype=(object, int, int, int, int, int,
+                                             int, int, int, int, int, object),
+                                      converters={1: timecon,
+                                                  12: stringcon})
 
         # setup the log detail table
-        self.logdetaillist.setRowCount(len(logdata))
-        self.logdetaillist.setColumnCount(len(logdata[0]))
-        self.logdetaillist.setHorizontalHeaderLabels(('Date', 'Time',
-                                                      'KF', 'RGF', 'SP_FRT',
-                                                      'FRT', 'ES', 'PA', 'LL',
-                                                      'SZ', 'SP_uP', 'uP',
-                                                      'SM'))
+        self.logdetaillist.setRowCount(len(logdata_numpy))
+        self.logdetaillist.setColumnCount(len(logdata_numpy[0]))
+        self.logdetaillist.setHorizontalHeaderLabels(logdata_numpy.dtype.names)
         self.logdetaillist.horizontalHeader().setStretchLastSection(True)
 
         # insert data in to the table
-        for rowcount, rowdata in enumerate(logdata):
+        for rowcount, rowdata in enumerate(logdata_numpy):
             for colcount, coldata in enumerate(rowdata):
                 cellitem = QTableWidgetItem()
                 cellitem.setFlags(PyQt5.QtCore.Qt.ItemIsSelectable |
@@ -290,7 +284,9 @@ class MainWindow(QMainWindow):
             # skip the header
             next(reader)
 
-            return str(next(reader)[0])
+            date = datetime.strptime(next(reader)[0], '%d.%m.%Y')
+
+            return date.date().isoformat()
 
 
 def strip_lines(iterable):
