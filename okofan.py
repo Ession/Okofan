@@ -4,7 +4,7 @@
 import sys
 import csv
 import glob
-from datetime import datetime
+from datetime import datetime, time
 import copy
 
 import numpy as np
@@ -137,10 +137,6 @@ class MainWindow(QMainWindow):
         self.tabdetailgraph = QWidget()
         self.logdetailgraphlayout = QVBoxLayout(self.tabdetailgraph)
 
-        graph = MplCanvas(self.tabdetailgraph, width=5, height=4, dpi=100)
-
-        self.logdetailgraphlayout.addWidget(graph)
-
         # add the tabs to the main tab widget
         self.maintabwidget.addTab(self.taboverview, 'Overview')
         self.maintabwidget.addTab(self.tabdetaillist, 'Detail log')
@@ -163,8 +159,7 @@ class MainWindow(QMainWindow):
             return
 
         # logfile name pattern: CM130513.CSV
-        filelist = glob.glob(directory +
-                             '/CM[0-9][0-9][0-9][0-9][0-9][0-9].csv')
+        filelist = glob.glob(''.join((directory, '/CM', '[0-9]' * 6, '.csv')))
 
         # check if there were suitably named files and load them
         if filelist:
@@ -270,37 +265,44 @@ class MainWindow(QMainWindow):
 
         # check if there is a log for the selected date
         if date not in self.logfiles:
-            QMessageBox.warning(self, 'Error',
-                                'No log for day \'' + date + '\' found.',
+            QMessageBox.warning(self, 'Error', ''.join(('No log for day \'',
+                                                        date, '\' found.')),
                                 QMessageBox.Ok)
             return
 
         # read csv file and save the data to a list
-        logdata_numpy = np.genfromtxt(self.logfiles[date],
-                                      delimiter=';', usecols=range(1, 13),
-                                      names=True, autostrip=True, unpack=True,
-                                      filling_values='Burning',
-                                      dtype=(object, int, int, int, int, int,
-                                             int, int, int, int, int, object),
-                                      converters={1: convert_time,
-                                                  12: lambda s: s.decode()})
+        logdata = np.genfromtxt(self.logfiles[date], delimiter=';',
+                                usecols=range(1, 13), names=True,
+                                autostrip=True, unpack=True,
+                                filling_values='Burning',
+                                dtype=(object, int, int, int, int, int,
+                                       int, int, int, int, int, object),
+                                converters={1: lambda s: convert_time(s, date),
+                                            12: lambda s: s.decode()})
 
         # setup the log detail table
-        self.logdetaillist.setRowCount(len(logdata_numpy))
-        self.logdetaillist.setColumnCount(len(logdata_numpy[0]))
-        self.logdetaillist.setHorizontalHeaderLabels(logdata_numpy.dtype.names)
+        self.logdetaillist.setRowCount(len(logdata))
+        self.logdetaillist.setColumnCount(len(logdata[0]))
+        self.logdetaillist.setHorizontalHeaderLabels(logdata.dtype.names)
         self.logdetaillist.horizontalHeader().setStretchLastSection(True)
 
         # insert data in to the table
-        for rowcount, rowdata in enumerate(logdata_numpy):
+        for rowcount, rowdata in enumerate(logdata):
             for colcount, coldata in enumerate(rowdata):
                 cellitem = QTableWidgetItem()
                 cellitem.setFlags(PyQt5.QtCore.Qt.ItemIsSelectable |
                                   PyQt5.QtCore.Qt.ItemIsEnabled)
-                cellitem.setText(str(coldata))
+                if isinstance(coldata, datetime):
+                    cellitem.setText(coldata.time().isoformat())
+                else:
+                    cellitem.setText(str(coldata))
                 self.logdetaillist.setItem(rowcount, colcount, cellitem)
 
         self.logdetaillist.resizeColumnsToContents()
+
+        graph = MplCanvas(self.tabdetailgraph, width=5, height=4, dpi=100)
+        graph.plot(matplotlib.dates.date2num(logdata['Time']), logdata['FRT'])
+        self.logdetailgraphlayout.addWidget(graph)
 
         # switch to the details tab
         self.maintabwidget.setCurrentIndex(1)
@@ -337,14 +339,16 @@ def strip_lines(iterable):
             yield line
 
 
-def convert_time(time):
+def convert_time(timestring, date='1990-01-01'):
     """Convert time string to have leading zeros.
 
-    :param time: Byte array in '%H:%M:%S' without leading zeros.
-    :return: String in '%H:%M:%S' with leading zeros.
+    :param timestring: Byte array in '%H:%M:%S' without leading zeros.
+    :param date: Date of the timestamp (defaults to 1990-01-01)
+    :return: time object
 
     """
-    return datetime.strptime(time.decode(), '%H:%M:%S').time().isoformat()
+    return datetime.strptime(' '.join((date, timestring.decode())),
+                             '%Y-%m-%d %H:%M:%S')
 
 
 app = QApplication(sys.argv)
