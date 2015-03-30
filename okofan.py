@@ -7,13 +7,38 @@ import glob
 from datetime import datetime
 import copy
 
+import matplotlib
+matplotlib.use('Qt5Agg')
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
 import numpy as np
 import PyQt5.QtCore
 from PyQt5.QtWidgets import (QApplication, QFileDialog, QTableWidgetItem,
                              QAbstractItemView, QMainWindow, QWidget,
                              QHBoxLayout, QTabWidget, QStatusBar, QAction,
                              QTableWidget, QVBoxLayout, QCalendarWidget,
-                             QMessageBox, QProgressDialog)
+                             QMessageBox, QProgressDialog, QSizePolicy)
+
+
+class MplCanvas(FigureCanvasQTAgg):
+
+    """This is the canvas (QWidget) for the log graphs."""
+
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111)
+
+        t = np.arange(0.0, 3.0, 0.01)
+        s = np.sin(2 * np.pi * t)
+        self.axes.plot(t, s)
+
+        FigureCanvasQTAgg.__init__(self, fig)
+        self.setParent(parent)
+
+        FigureCanvasQTAgg.setSizePolicy(self,
+                                        QSizePolicy.Expanding,
+                                        QSizePolicy.Expanding)
+        FigureCanvasQTAgg.updateGeometry(self)
 
 
 class MainWindow(QMainWindow):
@@ -102,9 +127,18 @@ class MainWindow(QMainWindow):
         self.logdetaillist.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.logdetaillistlayout.addWidget(self.logdetaillist)
 
+        # construct the detail graph tab
+        self.tabdetailgraph = QWidget()
+        self.logdetailgraphlayout = QVBoxLayout(self.tabdetailgraph)
+
+        graph = MplCanvas(self.tabdetailgraph, width=5, height=4, dpi=100)
+
+        self.logdetailgraphlayout.addWidget(graph)
+
         # add the tabs to the main tab widget
         self.maintabwidget.addTab(self.taboverview, 'Overview')
         self.maintabwidget.addTab(self.tabdetaillist, 'Detail log')
+        self.maintabwidget.addTab(self.tabdetailgraph, 'Detail graph')
         self.centralwidgetlayout.addWidget(self.maintabwidget)
 
     def open_action(self):
