@@ -4,7 +4,7 @@
 import sys
 import csv
 import glob
-from datetime import datetime, time
+from datetime import datetime
 import copy
 
 import numpy as np
@@ -18,6 +18,7 @@ import matplotlib
 matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
+import matplotlib.dates as mdates
 
 
 class MplCanvas(FigureCanvasQTAgg):
@@ -27,6 +28,7 @@ class MplCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
+        fig.autofmt_xdate()
 
         FigureCanvasQTAgg.__init__(self, fig)
         self.setParent(parent)
@@ -36,15 +38,34 @@ class MplCanvas(FigureCanvasQTAgg):
                                         QSizePolicy.Expanding)
         FigureCanvasQTAgg.updateGeometry(self)
 
-    def plot(self, x, y):
+    def set_data(self, x, y, status=None):
         """Takes data and plots it on the canvas
 
         :param x: Numpy array of X axis data to be plotted.
-        :param x: Numpy array of Y axis data to be plotted.
+        :param y: Tuple of Numpy arrays of Y axis data to be plotted.
+        :param status: Status with which to set the background shading.
         :return:
 
         """
-        self.axes.plot(x, y)
+        for axis in y:
+            self.axes.plot(x, axis)
+
+        self.axes.fill_between(x, 0, self.axes.get_ylim()[1],
+                               where=status == 'Zuendung',
+                               facecolor='green', alpha=0.2)
+        self.axes.fill_between(x, 0, self.axes.get_ylim()[1],
+                               where=status == 'Softstrt',
+                               facecolor='yellow', alpha=0.2)
+        self.axes.fill_between(x, 0, self.axes.get_ylim()[1],
+                               where=status == 'Burning',
+                               facecolor='red', alpha=0.2)
+        self.axes.fill_between(x, 0, self.axes.get_ylim()[1],
+                               where=status == 'Nachlauf',
+                               facecolor='blue', alpha=0.2)
+
+        self.axes.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
+        self.axes.grid(True)
+        self.axes.xaxis.axis_date()
 
 
 class MainWindow(QMainWindow):
@@ -61,6 +82,7 @@ class MainWindow(QMainWindow):
         # setting up the ui design
         self.resize(680, 500)
         self.setMinimumSize(PyQt5.QtCore.QSize(680, 500))
+        self.setWindowTitle('Ökofan')
 
         # construct the main widget
         self.centralwidget = QWidget(self)
@@ -279,6 +301,7 @@ class MainWindow(QMainWindow):
                                        int, int, int, int, int, object),
                                 converters={1: lambda s: convert_time(s, date),
                                             12: lambda s: s.decode()})
+        logdata.dtype.names = ('Time', 'KF', 'RGF', 'SP_FRT', 'FRT', 'ES', 'PA', 'LL', 'SZ', 'SP_uP', 'uP', 'SM')
 
         # setup the log detail table
         self.logdetaillist.setRowCount(len(logdata))
@@ -300,8 +323,10 @@ class MainWindow(QMainWindow):
 
         self.logdetaillist.resizeColumnsToContents()
 
-        graph = MplCanvas(self.tabdetailgraph, width=5, height=4, dpi=100)
-        graph.plot(matplotlib.dates.date2num(logdata['Time']), logdata['FRT'])
+        # plot the data on the canvas
+        graph = MplCanvas(self.tabdetailgraph, width=10, height=4, dpi=100)
+        graph.set_data(matplotlib.dates.date2num(logdata['Time']),
+                       [logdata['FRT']], logdata['SM'])
         self.logdetailgraphlayout.addWidget(graph)
 
         # switch to the details tab
